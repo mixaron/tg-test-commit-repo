@@ -31,7 +31,7 @@ router.post("/webhook", express.json(), async (req, res) => {
   });
 
   for (const msg of messages) {
-    await bot.api.sendMessage(Number(repo.userId), msg, {
+    await bot.api.sendMessage(Number(repo.chatId), msg, {
       parse_mode: "Markdown",
     });
   }

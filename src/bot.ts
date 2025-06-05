@@ -1,25 +1,99 @@
-import { Bot } from "grammy";
-import { prisma } from "./db";
-import dotenv from "dotenv";
-dotenv.config();
+import { Bot, InlineKeyboard } from "grammy";
+import { config } from "dotenv";
+import { PrismaClient } from "@prisma/client";
 
+config();
 export const bot = new Bot(process.env.BOT_TOKEN!);
+const prisma = new PrismaClient();
 
-// Команда: /addrepo repo-name
-bot.command("addrepo", async (ctx) => {
-  const args = ctx.message?.text?.split(" ").slice(1);
-  if (!args || args.length < 1) {
-    return ctx.reply("Использование: /addrepo <repo_name>");
+// /start
+bot.command("start", async (ctx) => {
+  await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах.", {
+    reply_markup: new InlineKeyboard()
+      .text("Добавить репозиторий", "add_repo")
+      .row()
+      .text("Мои репозитории", "my_repo")
+      .row()
+      .text("Помощь", "help"),
+  });
+});
+
+// /help
+bot.command("help", (ctx) =>
+  ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев")
+);
+
+// /addrepo
+bot.command("addrepo", (ctx) =>
+  ctx.reply("✏️ Введите имя репозитория (пример: my-repo):")
+);
+
+// capture input after /addrepo
+bot.on("message:text", async (ctx) => {
+  const repoName = ctx.message.text.trim();
+  const chatId = BigInt(ctx.chat.id);
+
+  if (!repoName.match(/^[a-zA-Z0-9-_]+$/)) {
+    return ctx.reply("❌ Неверное имя репозитория.");
   }
 
-  const [name] = args;
-
+  // сохранить в базу
   await prisma.repository.create({
     data: {
-      name,
-      userId: String(ctx.from?.id),
+      name: repoName,
+      chatId: chatId,
     },
   });
 
-  await ctx.reply(`✅ Репозиторий ${name} добавлен. Теперь бот будет слать тебе коммиты.`);
+  await ctx.reply(`✅ Репозиторий *${repoName}* добавлен!`, {
+    parse_mode: "Markdown",
+  });
 });
+
+// /myrepo
+bot.command("myrepo", async (ctx) => {
+  const repos = await prisma.repository.findMany({
+    where: { chatId: BigInt(ctx.chat.id) },
+  });
+
+  if (repos.length === 0) {
+    return ctx.reply("📭 У вас пока нет репозиториев.");
+  }
+
+  const text = repos.map((r, i) => `🔹 ${i + 1}. ${r.name}`).join("\n");
+  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+});
+
+// кнопки
+bot.callbackQuery("add_repo", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("✏️ Введите имя репозитория:");
+});
+
+bot.callbackQuery("my_repo", async (ctx) => {
+  await ctx.answerCallbackQuery();
+
+  const chatId = ctx.callbackQuery.message?.chat.id;
+  if (!chatId) {
+    return ctx.reply("❌ Не удалось определить чат.");
+  }
+
+  const repos = await prisma.repository.findMany({
+    where: { chatId: BigInt(chatId) },
+  });
+
+  if (repos.length === 0) {
+    return ctx.reply("📭 У вас пока нет репозиториев.");
+  }
+
+  const text = repos.map((r, i) => `🔹 ${i + 1}. ${r.name}`).join("\n");
+  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+});
+
+
+bot.callbackQuery("help", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
+});
+
+bot.start();
