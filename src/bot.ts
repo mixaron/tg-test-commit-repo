@@ -6,7 +6,6 @@ config();
 export const bot = new Bot(process.env.BOT_TOKEN!);
 const prisma = new PrismaClient();
 
-// /start
 bot.command("start", async (ctx) => {
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах.", {
     reply_markup: new InlineKeyboard()
@@ -18,17 +17,14 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// /help
 bot.command("help", (ctx) =>
   ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев")
 );
 
-// /addrepo
 bot.command("addrepo", (ctx) =>
   ctx.reply("✏️ Введите имя репозитория (пример: my-repo):")
 );
 
-// capture input after /addrepo
 bot.on("message:text", async (ctx) => {
   const repoName = ctx.message.text.trim();
   const chatId = BigInt(ctx.chat.id);

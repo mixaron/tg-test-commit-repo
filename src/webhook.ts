@@ -5,7 +5,6 @@ import crypto from "crypto";
 
 const router = express.Router();
 
-// Валидация сигнатуры (по желанию — можно отключить)
 function isValidSignature(req: express.Request, secret: string): boolean {
   const signature = req.headers["x-hub-signature-256"] as string;
   const payload = JSON.stringify(req.body);
@@ -14,16 +13,12 @@ function isValidSignature(req: express.Request, secret: string): boolean {
   return signature === digest;
 }
 
-// Основной webhook-обработчик
 router.post("/", express.json(), async (req, res) => {
-  // Если хочешь валидацию:
-  // if (!isValidSignature(req, process.env.WEBHOOK_SECRET!)) return res.sendStatus(403);
 
   const { repository, commits, ref } = req.body;
 
   if (!repository?.name || !commits) return res.sendStatus(400);
 
-  // Ищем в БД, кто подписан на репозиторий
   const repo = await prisma.repository.findFirst({
     where: { name: repository.name },
   });
