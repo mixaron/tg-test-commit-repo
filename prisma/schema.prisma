@@ -1,0 +1,15 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // или "postgresql", если у тебя PostgreSQL
+  url      = env("DATABASE_URL")
+}
+
+model Repository {
+  id     Int    @id @default(autoincrement())
+  name   String
+  userId String
+}
