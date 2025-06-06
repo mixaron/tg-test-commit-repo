@@ -27,7 +27,7 @@ router.post("/webhook", express.json(), async (req, res) => {
     const message = commit.message;
     const url = commit.url;
 
-    return `📦 *${repository.name}* \`(${ref})\`\n👤 [${author}]\n📝 [${sha}](${url}) — ${message}`;
+    return `*${repository.name}* \`(${ref})\`\n👤 [${author}]\n📝 [${sha}](${url}) — ${message}`;
   });
 
   for (const msg of messages) {

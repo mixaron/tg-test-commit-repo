@@ -30,10 +30,9 @@ bot.on("message:text", async (ctx) => {
   const chatId = BigInt(ctx.chat.id);
 
   if (!repoName.match(/^[a-zA-Z0-9-_]+$/)) {
-    return ctx.reply("❌ Неверное имя репозитория.");
+    return ctx.reply("Неверное имя репозитория.");
   }
 
-  // сохранить в базу
   await prisma.repository.create({
     data: {
       name: repoName,
@@ -41,12 +40,11 @@ bot.on("message:text", async (ctx) => {
     },
   });
 
-  await ctx.reply(`✅ Репозиторий *${repoName}* добавлен!`, {
+  await ctx.reply(`Репозиторий *${repoName}* добавлен!`, {
     parse_mode: "Markdown",
   });
 });
 
-// /myrepo
 bot.command("myrepo", async (ctx) => {
   const repos = await prisma.repository.findMany({
     where: { chatId: BigInt(ctx.chat.id) },
@@ -57,13 +55,12 @@ bot.command("myrepo", async (ctx) => {
   }
 
   const text = repos.map((r, i) => `🔹 ${i + 1}. ${r.name}`).join("\n");
-  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+  await ctx.reply(`Ваши репозитории:\n${text}`);
 });
 
-// кнопки
 bot.callbackQuery("add_repo", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.reply("✏️ Введите имя репозитория:");
+  await ctx.reply("Введите имя репозитория:");
 });
 
 bot.callbackQuery("my_repo", async (ctx) => {
@@ -71,7 +68,7 @@ bot.callbackQuery("my_repo", async (ctx) => {
 
   const chatId = ctx.callbackQuery.message?.chat.id;
   if (!chatId) {
-    return ctx.reply("❌ Не удалось определить чат.");
+    return ctx.reply("Не удалось определить чат.");
   }
 
   const repos = await prisma.repository.findMany({
@@ -83,13 +80,13 @@ bot.callbackQuery("my_repo", async (ctx) => {
   }
 
   const text = repos.map((r, i) => `🔹 ${i + 1}. ${r.name}`).join("\n");
-  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+  await ctx.reply(`Ваши репозитории:\n${text}`);
 });
 
 
 bot.callbackQuery("help", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
+  await ctx.reply("Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
 });
 
 bot.start();

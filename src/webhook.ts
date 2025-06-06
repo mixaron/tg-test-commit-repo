@@ -33,7 +33,7 @@ router.post("/", express.json(), async (req, res) => {
     const message = commit.message;
     const url = commit.url;
 
-    return `📦 *${repository.name}* \`(${branch})\`\n👤 *${author}*\n🔗 [${sha}](${url}) — ${message}`;
+    return `*${repository.name}* \`(${branch})\`\n👤 *${author}*\n🔗 [${sha}](${url}) — ${message}`;
   });
 
   for (const msg of messages) {

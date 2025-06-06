@@ -10,7 +10,7 @@ generator client {
 model Repository {
   id        Int      @id @default(autoincrement())
   name      String   @unique
-  chatId    BigInt   // ✅ используем BigInt, как и в коде
+  chatId    BigInt   
   createdAt DateTime @default(now())
 }
 
