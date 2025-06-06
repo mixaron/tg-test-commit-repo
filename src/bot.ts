@@ -1,4 +1,5 @@
 import { Bot, InlineKeyboard, Keyboard } from "grammy";
+
 import { config } from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
@@ -6,12 +7,10 @@ config();
 export const bot = new Bot(process.env.BOT_TOKEN!);
 const prisma = new PrismaClient();
 
-// /start
 bot.command("start", async (ctx) => {
   const userId = BigInt(Number(ctx.from?.id));
   const userName = ctx.from?.username;
 
-  // Регистрируем пользователя, если его нет
   await prisma.user.upsert({
     where: { telegramId: userId },
     update: {},
@@ -21,39 +20,40 @@ bot.command("start", async (ctx) => {
     },
   });
 
-const menuKeyboard = new Keyboard()
-  .text("/addrepo")
-  .text("/myrepo")
-  .row()
-  .text("/help");
+  const replyMarkup = {
+    keyboard: [
+ [{ text: "➕ Добавить репозиторий" }],
+      [{ text: "📋 Мои репозитории" }],
+      [{ text: "❓ Помощь" }],              
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+
+  };
+
 
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах. Выберите опцию:", {
-    reply_markup: menuKeyboard,
+    reply_markup: replyMarkup,
   });
 });
 
-// /help
 bot.command("help", (ctx) =>
-  ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев")
+  ctx.reply("Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев")
 );
 
-// /addrepo
 bot.command("addrepo", (ctx) =>
-  ctx.reply("✏️ Введите полное имя репозитория (пример: user/my-repo):")
+  ctx.reply("Введите полное имя репозитория (пример: user/my-repo):")
 );
 
-// Обработка текста: предполагаем, что это имя репозитория
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text.trim();
   const telegramId = BigInt(ctx.from?.id);
   const chatId = BigInt(ctx.chat?.id);
 
-  // Пропускаем команды
   if (input.startsWith("/")) return;
 
-  // Простой валидатор fullName
   if (!input.match(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)) {
-    return ctx.reply("❌ Неверное имя. Формат: `user/repo-name`", {
+    return ctx.reply("Неверное имя. Формат: `user/repo-name`", {
       parse_mode: "Markdown",
     });
   }
@@ -63,7 +63,6 @@ bot.on("message:text", async (ctx) => {
   const name = fullName.split("/").pop()!;
 
   try {
-    // Создаем или находим репозиторий
     const repo = await prisma.repository.upsert({
       where: { fullName },
       update: {},
@@ -72,11 +71,9 @@ bot.on("message:text", async (ctx) => {
         fullName,
         githubUrl,
         chatId,
-        // threadId и webhookId пока не заполняем
       },
     });
 
-    // Привязка чата
     await prisma.chatBinding.upsert({
       where: {
         repositoryId_chatId: {
@@ -91,7 +88,6 @@ bot.on("message:text", async (ctx) => {
       },
     });
 
-    // Привязка пользователя к репозиторию
     const user = await prisma.user.findUnique({
       where: { telegramId },
     });
@@ -112,16 +108,15 @@ bot.on("message:text", async (ctx) => {
       });
     }
 
-    await ctx.reply(`✅ Репозиторий *${fullName}* добавлен!`, {
+    await ctx.reply(`Репозиторий *${fullName}* добавлен!`, {
       parse_mode: "Markdown",
     });
   } catch (error) {
     console.error("Ошибка при добавлении репозитория:", error);
-    await ctx.reply("⚠️ Ошибка при добавлении репозитория. Возможно, он уже есть.");
+    await ctx.reply("Ошибка при добавлении репозитория. Возможно, он уже есть.");
   }
 });
 
-// /myrepo — список репозиториев пользователя
 bot.command("myrepo", async (ctx) => {
   const telegramId = BigInt(Number(ctx.from?.id));
 
@@ -135,20 +130,19 @@ bot.command("myrepo", async (ctx) => {
   });
 
   if (!user || user.repositories.length === 0) {
-    return ctx.reply("📭 У вас пока нет репозиториев.");
+    return ctx.reply("У вас пока нет репозиториев.");
   }
 
   const text = user.repositories
     .map((ru, i) => `🔹 ${i + 1}. ${ru.repository.fullName}`)
     .join("\n");
 
-  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+  await ctx.reply(`Ваши репозитории:\n${text}`);
 });
 
-// Кнопки
 bot.callbackQuery("add_repo", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.reply("✏️ Введите полное имя репозитория (пример: user/my-repo):");
+  await ctx.reply("Введите полное имя репозитория (пример: user/my-repo):");
 });
 
 bot.callbackQuery("my_repo", async (ctx) => {
@@ -163,19 +157,19 @@ bot.callbackQuery("my_repo", async (ctx) => {
   });
 
   if (!user || user.repositories.length === 0) {
-    return ctx.reply("📭 У вас пока нет репозиториев.");
+    return ctx.reply("У вас пока нет репозиториев.");
   }
 
   const text = user.repositories
     .map((ru, i) => `🔹 ${i + 1}. ${ru.repository.fullName}`)
     .join("\n");
 
-  await ctx.reply(`📦 Ваши репозитории:\n${text}`);
+  await ctx.reply(`Ваши репозитории:\n${text}`);
 });
 
 bot.callbackQuery("help", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
+  await ctx.reply("Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
 });
 
 bot.start();

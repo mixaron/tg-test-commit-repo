@@ -13,6 +13,13 @@ function isValidSignature(req: express.Request, secret: string): boolean {
   return signature === digest;
 }
 
+function escapeMarkdown(text: string): string {
+  const escapeChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+  return text.split('').map(char => 
+    escapeChars.includes(char) ? `\\${char}` : char
+  ).join('');
+}
+
 router.post("/", express.json(), async (req, res) => {
   try {
     // Проверка подписи вебхука
@@ -79,15 +86,19 @@ router.post("/", express.json(), async (req, res) => {
     // Формируем сообщения для Telegram
     const messages = commits.map((commit: any) => {
       const sha = commit.id.substring(0, 7);
-      const author = commit.author?.name || sender.login;
-      const message = commit.message.split("\n")[0]; // Берем первую строку сообщения
+      const author = escapeMarkdown(commit.author?.name || sender.login);
+      const message = escapeMarkdown(commit.message.split("\n")[0]);
       const url = commit.url;
+      const repoName = escapeMarkdown(repository.name);
+      const additions = commit.additions || 0;
+      const deletions = commit.deletions || 0;
+      const filesChanged = commit.modified?.length || 0;
 
-      return `*${repository.name}* \`(${branch})\`\n` +
-             `👤 *${author}*\n` +
-             `📌 [${sha}](${url}) — ${message}\n` +
-             `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
-    });
+      return `*${escapeMarkdown(repository.name)}* \`(${branch})\`\n` +
+         `👤 *${escapeMarkdown(author)}*\n` +
+         `📌 [${sha}](${url}) — ${escapeMarkdown(message)}\n` +
+         `📊 +${additions}/-${deletions} (${filesChanged} файлов)`;
+});
 
     // Отправляем сообщения в чат
     for (const msg of messages) {
