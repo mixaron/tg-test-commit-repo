@@ -15,9 +15,10 @@ function isValidSignature(req: express.Request, secret: string): boolean {
 
 function escapeMarkdown(text: string): string {
   const escapeChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
-  return text.split('').map(char => 
-    escapeChars.includes(char) ? `\\${char}` : char
-  ).join('');
+  return text
+    .split('')
+    .map(char => escapeChars.includes(char) ? `\\${char}` : char)
+    .join('');
 }
 
 router.post("/", express.json(), async (req, res) => {
@@ -32,19 +33,23 @@ router.post("/", express.json(), async (req, res) => {
       return res.status(400).send("Bad request");
     }
 
-    const repo = await prisma.repository.upsert({
+    const repo = await prisma.repository.findUnique({
       where: { fullName: repository.full_name },
-      update: {
-        name: repository.name,
-        githubUrl: repository.html_url,
-      },
-      create: {
-        name: repository.name,
-        fullName: repository.full_name,
-        githubUrl: repository.html_url,
-        chatId: 0, 
+    });
+
+    if (!repo) {
+      return res.status(400).send("Repository not registered via bot");
+    }
+
+    const binding = await prisma.chatBinding.findFirst({
+      where: {
+        repositoryId: repo.id,
       },
     });
+
+    if (!binding) {
+      return res.status(400).send("No chat binding found for this repository");
+    }
 
     const user = await prisma.user.upsert({
       where: { githubLogin: sender.login },
@@ -54,73 +59,57 @@ router.post("/", express.json(), async (req, res) => {
       create: {
         githubLogin: sender.login,
         telegramName: sender.login,
-        telegramId: 0, 
+        telegramId: 0, // должен быть установлен ботом
       },
     });
 
     const branch = ref?.split("/")?.pop() ?? "unknown";
-    
-    const commitPromises = commits.map(async (commit: any) => {
-      return prisma.commit.create({
+
+    const commitPromises = commits.map((commit: any) =>
+      prisma.commit.create({
         data: {
           sha: commit.id,
           message: commit.message,
           url: commit.url,
           branch,
-          additions: 0, 
-          deletions: 0, 
+          additions: commit.additions || 0,
+          deletions: commit.deletions || 0,
           filesChanged: commit.modified?.length || 0,
           committedAt: new Date(commit.timestamp),
           authorId: user.id,
           repositoryId: repo.id,
         },
-      });
-    });
+      })
+    );
 
     await Promise.all(commitPromises);
 
     const messages = commits.map((commit: any) => {
       const sha = commit.id.substring(0, 7);
-      const author = commit.author?.name || sender.login;
-      const message = commit.message.split("\n")[0];
+      const author = escapeMarkdown(commit.author?.name || sender.login);
+      const message = escapeMarkdown(commit.message.split("\n")[0]);
       const url = commit.url;
 
-      let text = `*${repository.name}* \`(${branch})\`\n` +
-             `👤 *${author}*\n` +
-             `📌 [${sha}](${url}) \\— ${message}\n` +
-             `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
-      text = text
-                .replace(/\_/g, '\\_')
-                .replace(/\*/g, '\\*')
-                .replace(/\[/g, '\\[')
-                .replace(/\]/g, '\\]')
-                .replace(/\(/g, '\\(')
-                .replace(/\)/g, '\\)')
-                .replace(/\~/g, '\\~')
-                .replace(/\`/g, '\\`')
-                .replace(/\>/g, '\\>')
-                .replace(/\#/g, '\\#')
-                .replace(/\+/g, '\\+')
-                .replace(/\-/g, '\\-')
-                .replace(/\=/g, '\\=')
-                .replace(/\|/g, '\\|')
-                .replace(/\{/g, '\\{')
-                .replace(/\}/g, '\\}')
-                .replace(/\./g, '\\.')
-                .replace(/\!/g, '\\!')
-      return text
+      return (
+        `*${escapeMarkdown(repository.name)}* \`(${escapeMarkdown(branch)})\`\n` +
+        `👤 *${author}*\n` +
+        `📌 [${sha}](${url}) \\— ${message}\n` +
+        `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`
+      );
     });
 
     for (const msg of messages) {
       try {
-        await bot.api.sendMessage(Number(repo.chatId), msg, {
+        console.log("📤 Sending to", binding.chatId, "thread:", binding.threadId);
+        await bot.api.sendMessage(Number(binding.chatId), msg, {
           parse_mode: "MarkdownV2",
-          message_thread_id: repo.threadId ? Number(repo.threadId) : undefined,
+          message_thread_id: binding.threadId ? Number(binding.threadId) : undefined,
         });
       } catch (error) {
-        console.error(`Ошибка отправки сообщения в чат ${repo.chatId}:`, error);
+        console.error(`Ошибка отправки сообщения в чат ${binding.chatId}:`, error);
       }
     }
+
     res.status(200).send("OK");
   } catch (error) {
     console.error("Ошибка обработки вебхука:", error);

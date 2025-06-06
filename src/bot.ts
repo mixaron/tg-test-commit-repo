@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard, Keyboard, Context } from "grammy"; // Добавлен Context для типизации
+import { Bot, Keyboard, Context } from "grammy"; // Добавлен Context для типизации
 import { config } from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
@@ -52,7 +52,7 @@ async function handleStartCommand(ctx: Context) {
 }
 
 async function handleHelpCommand(ctx: Context) {
-  await ctx.reply("📚 Команды:\n/start — запустить\n➕ Добавить репозиторий — добавить репозиторий\n📋 Мои репозитории — список ваших репозиториев");
+    await ctx.reply("📚 Команды:\n/start — запустить\n/addrepo — добавить репозиторий\n/myrepo — список ваших репозиториев");
 }
 
 async function handleAddRepoCommand(ctx: Context) {
@@ -147,6 +147,8 @@ bot.on("message:text", async (ctx) => {
 
   const telegramId = BigInt(ctx.from.id);
   const chatId = BigInt(ctx.chat.id);
+ const threadId = ctx.message?.message_thread_id
+
 
   // Валидация формата полного имени репозитория (user/repo-name)
   if (!input || !input.match(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)) {
@@ -173,6 +175,7 @@ bot.on("message:text", async (ctx) => {
         fullName,
         githubUrl,
         chatId,
+        threadId: threadId
         // threadId и webhookId пока не заполняем
       },
     });
@@ -190,6 +193,7 @@ bot.on("message:text", async (ctx) => {
       create: {
         repositoryId: repo.id,
         chatId: chatId,
+        threadId: threadId
       },
     });
     console.log(`Связка чата ${chatId} с репозиторием ${repo.id} upserted.`);
@@ -232,54 +236,6 @@ bot.on("message:text", async (ctx) => {
         await ctx.reply("⚠️ Произошла ошибка при добавлении репозитория. Пожалуйста, проверьте имя или попробуйте позже.");
     }
   }
-});
-
-
-// --- ОБРАБОТЧИКИ callbackQuery (Остаются для InlineKeyboard, если она где-то используется) ---
-// В вашем текущем коде InlineKeyboard не используется. Если она вам не нужна, эти блоки можно удалить.
-
-bot.callbackQuery("add_repo", async (ctx) => {
-  await ctx.answerCallbackQuery(); // Обязательно ответить на callbackQuery
-  await ctx.reply("✏️ Введите полное имя репозитория (пример: user/my-repo):");
-});
-
-bot.callbackQuery("my_repo", async (ctx) => {
-  await ctx.answerCallbackQuery();
-
-  if (!ctx.from?.id) {
-    return ctx.reply("⚠️ Произошла внутренняя ошибка: не удалось определить ваш ID.");
-  }
-
-  const telegramId = BigInt(ctx.from.id);
-  try {
-    const user = await prisma.user.findUnique({
-      where: { telegramId },
-      include: {
-        repositories: { include: { repository: true } },
-      },
-    });
-
-    if (!user || user.repositories.length === 0) {
-      return ctx.reply("📭 У вас пока нет репозиториев.");
-    }
-
-    const text = user.repositories
-      .map((ru, i) => `🔹 ${i + 1}. [${ru.repository.fullName}](${ru.repository.githubUrl})`)
-      .join("\n");
-
-    await ctx.reply(`📦 Ваши репозитории:\n${text}`, {
-      parse_mode: "Markdown",
-      // disable_web_page_preview: true,
-    });
-  } catch (error) {
-    console.error("Ошибка в callbackQuery 'my_repo':", error);
-    await ctx.reply("⚠️ Произошла ошибка при получении списка репозиториев (callback). Пожалуйста, попробуйте позже.");
-  }
-});
-
-bot.callbackQuery("help", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply("📚 Команды:\n/start — запустить\n➕ Добавить репозиторий — добавить репозиторий\n📋 Мои репозитории — список ваших репозиториев");
 });
 
 // Запуск бота
