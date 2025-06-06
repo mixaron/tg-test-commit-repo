@@ -116,19 +116,16 @@ router.post("/", express.json(), async (req, res) => {
       return text
     });
 
-    // Отправляем сообщения в чат
     for (const msg of messages) {
       try {
         await bot.api.sendMessage(Number(repo.chatId), msg, {
           parse_mode: "MarkdownV2",
-          // disable_web_page_preview: true,
           message_thread_id: repo.threadId ? Number(repo.threadId) : undefined,
         });
       } catch (error) {
         console.error(`Ошибка отправки сообщения в чат ${repo.chatId}:`, error);
       }
     }
-
     res.status(200).send("OK");
   } catch (error) {
     console.error("Ошибка обработки вебхука:", error);
