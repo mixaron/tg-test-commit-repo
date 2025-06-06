@@ -92,7 +92,7 @@ router.post("/", express.json(), async (req, res) => {
 
       return `*${repository.name}* \`(${branch})\`\n` +
              `👤 *${author}*\n` +
-             `📌 [${sha}](${url}) \\— ${message}\n` +
+            //  `📌 [${sha}](${url}) \\— ${message}\n` +
              `📊 +${commit.additions || 0}/\\-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
     });
 
