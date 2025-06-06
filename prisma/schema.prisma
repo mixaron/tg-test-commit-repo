@@ -1,16 +1,81 @@
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
-model Repository {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  chatId    BigInt   
-  createdAt DateTime @default(now())
+model User {
+  id           Int            @id @default(autoincrement())
+  telegramId   BigInt         @unique
+  telegramName String?
+  githubLogin  String?        @unique
+  createdAt    DateTime       @default(now())
+  repositories RepositoryUser[]
+  commits      Commit[]
 }
 
+model Repository {
+  id          Int              @id @default(autoincrement())
+  name        String
+  fullName    String           @unique
+  githubUrl   String           @unique
+  chatId      BigInt
+  threadId    Int?
+  webhookId   Int?
+  createdAt   DateTime         @default(now())
+  users       RepositoryUser[]
+  commits     Commit[]
+  chatBindings ChatBinding[]
+  weeklyReports WeeklyReport[]
+}
+
+model RepositoryUser {
+  user       User       @relation(fields: [userId], references: [id])
+  userId     Int
+  repository Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId Int
+  createdAt  DateTime   @default(now())
+
+  @@id([userId, repositoryId])
+}
+
+model ChatBinding {
+  id           Int        @id @default(autoincrement())
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId Int
+  chatId       BigInt
+  threadId     Int?
+  createdAt    DateTime   @default(now())
+  @@unique([repositoryId, chatId])
+}
+
+model Commit {
+  id           Int        @id @default(autoincrement())
+  sha          String     @unique
+  message      String
+  url          String
+  author       User       @relation(fields: [authorId], references: [id])
+  authorId     Int
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId Int
+  branch       String
+  additions    Int
+  deletions    Int
+  filesChanged Int
+  committedAt  DateTime
+  createdAt    DateTime   @default(now())
+}
+
+model WeeklyReport {
+  id           Int        @id @default(autoincrement())
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId Int
+  weekStart    DateTime
+  weekEnd      DateTime
+  stats        Json
+  sentAt       DateTime?
+  createdAt    DateTime   @default(now())
+}

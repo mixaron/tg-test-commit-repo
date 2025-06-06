@@ -14,37 +14,99 @@ function isValidSignature(req: express.Request, secret: string): boolean {
 }
 
 router.post("/", express.json(), async (req, res) => {
+  try {
+    // Проверка подписи вебхука
+    if (!isValidSignature(req, process.env.WEBHOOK_SECRET || "")) {
+      return res.status(403).send("Invalid signature");
+    }
 
-  const { repository, commits, ref } = req.body;
+    const { repository, commits, ref, sender } = req.body;
 
-  if (!repository?.name || !commits) return res.sendStatus(400);
+    if (!repository?.name || !commits) {
+      return res.status(400).send("Bad request");
+    }
 
-  const repo = await prisma.repository.findFirst({
-    where: { name: repository.name },
-  });
+    // Получаем или создаем репозиторий
+    const repo = await prisma.repository.upsert({
+      where: { fullName: repository.full_name },
+      update: {
+        name: repository.name,
+        githubUrl: repository.html_url,
+      },
+      create: {
+        name: repository.name,
+        fullName: repository.full_name,
+        githubUrl: repository.html_url,
+        chatId: 0, // Временное значение, нужно обновить через команду бота
+      },
+    });
 
-  if (!repo) return res.sendStatus(404);
+    // Получаем или создаем пользователя
+    const user = await prisma.user.upsert({
+      where: { githubLogin: sender.login },
+      update: {
+        telegramName: sender.login,
+      },
+      create: {
+        githubLogin: sender.login,
+        telegramName: sender.login,
+        telegramId: 0, // Временное значение, нужно привязать через бота
+      },
+    });
 
-  const branch = ref?.split("/")?.pop() ?? "unknown";
+    // Сохраняем коммиты
+    const branch = ref?.split("/")?.pop() ?? "unknown";
+    
+    const commitPromises = commits.map(async (commit: any) => {
+      return prisma.commit.create({
+        data: {
+          sha: commit.id,
+          message: commit.message,
+          url: commit.url,
+          branch,
+          additions: 0, // Можно получить из commit.additions
+          deletions: 0, // Можно получить из commit.deletions
+          filesChanged: commit.modified?.length || 0,
+          committedAt: new Date(commit.timestamp),
+          authorId: user.id,
+          repositoryId: repo.id,
+        },
+      });
+    });
 
-  const messages = commits.map((commit: any) => {
-    const sha = commit.id.substring(0, 7);
-    const author = commit.author.name;
-    const message = commit.message;
-    const url = commit.url;
+    await Promise.all(commitPromises);
 
-    return `*${repository.name}* \`(${branch})\`\n👤 *${author}*\n🔗 [${sha}](${url}) — ${message}`;
-  });
+    // Формируем сообщения для Telegram
+    const messages = commits.map((commit: any) => {
+      const sha = commit.id.substring(0, 7);
+      const author = commit.author?.name || sender.login;
+      const message = commit.message.split("\n")[0]; // Берем первую строку сообщения
+      const url = commit.url;
 
-  for (const msg of messages) {
-    await bot.api.sendMessage(Number(repo.chatId), msg, {
-  parse_mode: "Markdown",
-  disable_web_page_preview: true,
-    } as any);
+      return `*${repository.name}* \`(${branch})\`\n` +
+             `👤 *${author}*\n` +
+             `📌 [${sha}](${url}) — ${message}\n` +
+             `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
+    });
 
+    // Отправляем сообщения в чат
+    for (const msg of messages) {
+      try {
+        await bot.api.sendMessage(Number(repo.chatId), msg, {
+          parse_mode: "MarkdownV2",
+          // disable_web_page_preview: true,
+          message_thread_id: repo.threadId ? Number(repo.threadId) : undefined,
+        });
+      } catch (error) {
+        console.error(`Ошибка отправки сообщения в чат ${repo.chatId}:`, error);
+      }
+    }
+
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("Ошибка обработки вебхука:", error);
+    res.status(500).send("Internal server error");
   }
-
-  res.sendStatus(200);
 });
 
 export default router;
