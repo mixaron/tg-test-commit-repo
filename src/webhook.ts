@@ -94,25 +94,25 @@ router.post("/", express.json(), async (req, res) => {
              `👤 *${author}*\n` +
              `📌 [${sha}](${url}) \\— ${message}\n` +
              `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
-      text
-          .replace(/\_/g, '\\_')
-          .replace(/\*/g, '\\*')
-          .replace(/\[/g, '\\[')
-          .replace(/\]/g, '\\]')
-          .replace(/\(/g, '\\(')
-          .replace(/\)/g, '\\)')
-          .replace(/\~/g, '\\~')
-          .replace(/\`/g, '\\`')
-          .replace(/\>/g, '\\>')
-          .replace(/\#/g, '\\#')
-          .replace(/\+/g, '\\+')
-          .replace(/\-/g, '\\-')
-          .replace(/\=/g, '\\=')
-          .replace(/\|/g, '\\|')
-          .replace(/\{/g, '\\{')
-          .replace(/\}/g, '\\}')
-          .replace(/\./g, '\\.')
-          .replace(/\!/g, '\\!')
+      text = text
+                .replace(/\_/g, '\\_')
+                .replace(/\*/g, '\\*')
+                .replace(/\[/g, '\\[')
+                .replace(/\]/g, '\\]')
+                .replace(/\(/g, '\\(')
+                .replace(/\)/g, '\\)')
+                .replace(/\~/g, '\\~')
+                .replace(/\`/g, '\\`')
+                .replace(/\>/g, '\\>')
+                .replace(/\#/g, '\\#')
+                .replace(/\+/g, '\\+')
+                .replace(/\-/g, '\\-')
+                .replace(/\=/g, '\\=')
+                .replace(/\|/g, '\\|')
+                .replace(/\{/g, '\\{')
+                .replace(/\}/g, '\\}')
+                .replace(/\./g, '\\.')
+                .replace(/\!/g, '\\!')
       return text
     });
 
