@@ -54,7 +54,7 @@ router.post("/", express.json(), async (req, res) => {
       create: {
         githubLogin: sender.login,
         telegramName: sender.login,
-        telegramId: 0, // 
+        telegramId: 0, 
       },
     });
 
