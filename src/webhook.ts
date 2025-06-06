@@ -90,10 +90,30 @@ router.post("/", express.json(), async (req, res) => {
       const message = commit.message.split("\n")[0]; // Берем первую строку сообщения
       const url = commit.url;
 
-      return `*${repository.name}* \`(${branch})\`\n` +
+      let text = `*${repository.name}* \`(${branch})\`\n` +
              `👤 *${author}*\n` +
-            //  `📌 [${sha}](${url}) \\— ${message}\n` +
-             `📊 +${commit.additions || 0}/\\-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
+             `📌 [${sha}](${url}) \\— ${message}\n` +
+             `📊 +${commit.additions || 0}/-${commit.deletions || 0} (${commit.modified?.length || 0} файлов)`;
+      text
+          .replace(/\_/g, '\\_')
+          .replace(/\*/g, '\\*')
+          .replace(/\[/g, '\\[')
+          .replace(/\]/g, '\\]')
+          .replace(/\(/g, '\\(')
+          .replace(/\)/g, '\\)')
+          .replace(/\~/g, '\\~')
+          .replace(/\`/g, '\\`')
+          .replace(/\>/g, '\\>')
+          .replace(/\#/g, '\\#')
+          .replace(/\+/g, '\\+')
+          .replace(/\-/g, '\\-')
+          .replace(/\=/g, '\\=')
+          .replace(/\|/g, '\\|')
+          .replace(/\{/g, '\\{')
+          .replace(/\}/g, '\\}')
+          .replace(/\./g, '\\.')
+          .replace(/\!/g, '\\!')
+      return text
     });
 
     // Отправляем сообщения в чат
