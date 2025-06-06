@@ -22,9 +22,9 @@ bot.command("start", async (ctx) => {
 
   const replyMarkup = {
     keyboard: [
- [{ text: "➕ Добавить репозиторий" }],
-      [{ text: "📋 Мои репозитории" }],
-      [{ text: "❓ Помощь" }],              
+      [{ text: "/addrepo" }],
+      [{ text: "/myrepo" }],
+      [{ text: "/help" }],                           
     ],
     resize_keyboard: true,
     one_time_keyboard: false,
