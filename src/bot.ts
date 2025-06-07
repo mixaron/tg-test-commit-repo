@@ -58,13 +58,15 @@ async function handleStartCommand(ctx: Context) {
     return ctx.reply("⚠️ Произошла ошибка при регистрации вас в системе.");
   }
 
-  const replyMarkup = new Keyboard([
-    [{ text: "➕ Добавить репозиторий" }],
-    [{ text: "📋 Мои репозитории" }],
-    [{ text: "❓ Помощь" }],
-  ],
-    resize_keybpard
-);
+  const replyMarkup = {
+    keyboard: [
+      [{ text: "➕ Добавить репозиторий" }],
+      [{ text: "📋 Мои репозитории" }],
+      [{ text: "❓ Помощь" }],
+    ],
+    resize_keyboard: true, 
+    one_time_keyboard: false, 
+  };
 
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах. Выберите опцию:", { reply_markup: replyMarkup });
 }
@@ -140,9 +142,9 @@ async function handleDelRepoCommand(ctx: Context) {
 
   const inlineKeyboard = new InlineKeyboard();
   for (const repo of filteredRepos) {
-    inlineKeyboard.row(
-      inlineKeyboard.text(repo.fullName, `select_to_delete_repo_${repo.id}`)
-    );
+    const button = { text: repo.fullName, callback_data: `select_to_delete_repo_${repo.id}` };
+    inlineKeyboard.row(button);
+
   }
 
   await ctx.reply("Выберите репозиторий для удаления:", { reply_markup: inlineKeyboard });
