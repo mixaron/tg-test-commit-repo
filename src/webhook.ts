@@ -81,7 +81,7 @@ router.post("/", express.json(), async (req, res) => {
     await Promise.all(commitPromises);
 
     const messages = commits.map((commit: any) => {
-      const sha = escapeMarkdown(commit.id.substring(0, 7));
+      const sha = commit.id.substring(0, 7); 
       const author = escapeMarkdown(commit.author?.name || sender.login);
       const message = escapeMarkdown(commit.message.split("\n")[0]);
 
