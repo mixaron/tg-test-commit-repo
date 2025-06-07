@@ -79,7 +79,6 @@ async function handleMyRepoCommand(ctx: Context) {
   }
 }
 
-// --- РЕГИСТРАЦИЯ КОМАНД ---
 bot.command("start", handleStartCommand);
 bot.command("help", handleHelpCommand);
 bot.command("addrepo", handleAddRepoCommand);
@@ -87,7 +86,6 @@ bot.command("myrepo", handleMyRepoCommand);
 
 
 
-// --- ОБРАБОТКА ВВОДА ---
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text?.trim();
   if (!input) return;
