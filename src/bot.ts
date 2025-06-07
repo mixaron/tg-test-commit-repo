@@ -62,7 +62,9 @@ async function handleStartCommand(ctx: Context) {
     [{ text: "➕ Добавить репозиторий" }],
     [{ text: "📋 Мои репозитории" }],
     [{ text: "❓ Помощь" }],
-  ]).resize();
+  ],
+    resize_keybpard
+);
 
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах. Выберите опцию:", { reply_markup: replyMarkup });
 }

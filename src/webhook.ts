@@ -86,7 +86,7 @@ router.post("/", express.json(), async (req, res) => {
       const authorLink = `[${author}](https://github.com/${sender.login})`;
       const message = escapeMarkdown(commit.message.split("\n")[0]);
       const url = commit.url;
-      const commitMessage = escapeMarkdown(commit.message.split("\n")[0]);
+
       const additions = `+${commit.additions || 0}`;
       const deletions = `-${commit.deletions || 0}`;
       const filesChanged = `${commit.modified?.length || 0}`;
@@ -94,8 +94,8 @@ router.post("/", express.json(), async (req, res) => {
       return (
         `*${escapeMarkdown(repository.name)}* \`(${escapeMarkdown(branch)})\`\n` +
         `👤 [${escapeMarkdown(author)}](https://github.com/${sender.login})\n` +
-         `📌 [\`${sha}\`](${commit.url}) — ${commitMessage}\n` +
-        `📊 ${escapeMarkdown(`${additions}/${deletions} (${filesChanged} файлов)`)}`
+        `📌 [\`${escapeMarkdown(sha)}\`](${commit.url}) — ${escapeMarkdown(message)}\n` +
+        `📊 ${escapeMarkdown(`${additions}/${deletions} (${filesChanged} files)`)}`
       );
 
     });
