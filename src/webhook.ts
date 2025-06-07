@@ -14,7 +14,7 @@ function isValidSignature(req: express.Request, secret: string): boolean {
 }
 
 function escapeMarkdown(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, (match) => '\\' + match);
 }
 
 router.post("/", express.json(), async (req, res) => {
@@ -85,16 +85,18 @@ router.post("/", express.json(), async (req, res) => {
       const author = escapeMarkdown(commit.author?.name || sender.login);
       const message = escapeMarkdown(commit.message.split("\n")[0]);
       const url = commit.url;
-      const additions = escapeMarkdown(`+${commit.additions || 0}`);
-      const deletions = escapeMarkdown(`-${commit.deletions || 0}`);
-      const filesChanged = escapeMarkdown(`${commit.modified?.length || 0}`);
+
+      const additions = `+${commit.additions || 0}`;
+      const deletions = `-${commit.deletions || 0}`;
+      const filesChanged = `${commit.modified?.length || 0}`;
 
       return (
         `*${escapeMarkdown(repository.name)}* \`(${escapeMarkdown(branch)})\`\n` +
-        `👤 *${author}*\n` +
-        `📌 [${sha}](${url}) \\— ${message}\n` +
-        `📊 ${additions}/${deletions} (${filesChanged} файлов)`
+        `👤 *${escapeMarkdown(author)}*\n` +
+        `📌 [${escapeMarkdown(sha)}](${escapeMarkdown(url)}) \\— ${escapeMarkdown(message)}\n` +
+        `📊 ${escapeMarkdown(`${additions}/${deletions} (${filesChanged} файлов)`)}`
       );
+
     });
 
     for (const msg of messages) {
