@@ -193,30 +193,29 @@ bot.on("message:text", async (ctx) => {
                 }
             });
 
-            if (existingChatBinding?.threadId !== null) {
-                // Если уже есть привязка к топику в этом чате для этого репо
-                finalThreadId = existingChatBinding.threadId;
-                await ctx.reply(`Этот репозиторий уже отслеживается в топике: [${name}](https://t.me/c/${chatId.toString().substring(4)}/${finalThreadId})`, {
+ if (existingChatBinding !== null && existingChatBinding.threadId !== null) {
+            // Если уже есть привязка к топику в этом чате для этого репо
+            finalThreadId = existingChatBinding.threadId; // Теперь TypeScript знает, что existingChatBinding не null
+            await ctx.reply(`Этот репозиторий уже отслеживается в топике: [${name}](https://t.me/c/${chatId.toString().substring(4)}/${finalThreadId})`, {
+                parse_mode: "Markdown",
+                reply_to_message_id: ctx.message?.message_id
+            });
+        } else { // Если existingChatBinding null или threadId null, то создаем новый топик
+            try {
+                const topic = await bot.api.createForumTopic(Number(chatId), name);
+                finalThreadId = topic.message_thread_id;
+                await ctx.reply(`📊 Создан топик для репозитория: [${name}](https://t.me/c/${chatId.toString().substring(4)}/${finalThreadId})`, {
                     parse_mode: "Markdown",
                     reply_to_message_id: ctx.message?.message_id
                 });
-            } else {
-                // Пытаемся создать новый топик
-                try {
-                    const topic = await bot.api.createForumTopic(Number(chatId), name);
-                    finalThreadId = topic.message_thread_id;
-                    await ctx.reply(`📊 Создан топик для репозитория: [${name}](https://t.me/c/${chatId.toString().substring(4)}/${finalThreadId})`, {
-                        parse_mode: "Markdown",
-                        reply_to_message_id: ctx.message?.message_id
-                    });
-                } catch (topicError: any) {
-                    console.warn("Не удалось создать топик форума:", topicError.message);
-                    await ctx.reply("⚠️ Не удалось создать отдельный топик форума для репозитория. Отслеживание будет вестись в текущем чате.");
-                    finalThreadId = null; // Отсутствие threadId
-                }
+            } catch (topicError: any) {
+                console.warn("Не удалось создать топик форума:", topicError.message);
+                await ctx.reply("⚠️ Не удалось создать отдельный топик форума для репозитория. Отслеживание будет вестись в текущем чате.");
+                finalThreadId = null;
             }
         }
     }
+}
     // Для приватных чатов finalThreadId останется null
 
     const repo = await prisma.repository.upsert({
