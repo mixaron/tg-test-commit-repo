@@ -292,7 +292,6 @@ bot.on("message:text", async (ctx) => {
 });
 
 
-// --- ОБРАБОТЧИКИ CALLBACK QUERY ---
 
 bot.callbackQuery(/^select_to_delete_repo_(\d+)$/, async (ctx) => {
   await ctx.answerCallbackQuery();
