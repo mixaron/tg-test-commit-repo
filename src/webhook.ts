@@ -83,6 +83,7 @@ router.post("/", express.json(), async (req, res) => {
     const messages = commits.map((commit: any) => {
       const sha = escapeMarkdown(commit.id.substring(0, 7));
       const author = escapeMarkdown(commit.author?.name || sender.login);
+      const authorLink = `[${author}](https://github.com/${sender.login})`;
       const message = escapeMarkdown(commit.message.split("\n")[0]);
       const url = commit.url;
 
@@ -92,8 +93,8 @@ router.post("/", express.json(), async (req, res) => {
 
       return (
         `*${escapeMarkdown(repository.name)}* \`(${escapeMarkdown(branch)})\`\n` +
-        `👤 *${escapeMarkdown(author)}*\n` +
-        `📌 [${escapeMarkdown(sha)}](${escapeMarkdown(url)}) \\— ${escapeMarkdown(message)}\n` +
+        `👤 [${escapeMarkdown(author)}](https://github.com/${sender.login})\n` +
+        `📌 [\`${escapeMarkdown(sha)}\`](${commit.url}) — ${escapeMarkdown(message)}\n` +
         `📊 ${escapeMarkdown(`${additions}/${deletions} (${filesChanged} файлов)`)}`
       );
 

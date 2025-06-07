@@ -85,6 +85,8 @@ bot.command("help", handleHelpCommand);
 bot.command("addrepo", handleAddRepoCommand);
 bot.command("myrepo", handleMyRepoCommand);
 
+
+
 // --- ОБРАБОТКА ВВОДА ---
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text?.trim();
