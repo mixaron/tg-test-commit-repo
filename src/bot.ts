@@ -122,7 +122,7 @@ async function handleStartCommand(ctx: MyContext) {
       [{ text: "➕ Добавить репозиторий" }],
       [{ text: "📋 Мои репозитории" }],
       [{ text: "❓ Помощь" }],
-      [{ text: "🔗 Привязать GitHub" }],
+      [{ text: "🔗 Привязать GitHub" }, { text: "🗑️ Отвязать GitHub" }], // Добавляем новую кнопку
       [{ text: "🤡 Отвязать репозиторий" }],
     ],
     resize_keyboard: true,
@@ -143,7 +143,8 @@ async function handleHelpCommand(ctx: MyContext) {
     "/addrepo — добавить новый репозиторий для отслеживания\n" +
     "/myrepo — показать список всех отслеживаемых репозиториев\n" +
     "/delrepo — удалить отслеживаемый репозиторий\n" +
-    "/linkgithub — привязать ваш GitHub никнейм"
+    "/linkgithub — привязать ваш GitHub никнейм\n" +
+    "/unlinkgithub — отвязать ваш GitHub никнейм" // Добавляем новую команду в помощь
   );
 }
 
@@ -234,6 +235,36 @@ async function handleLinkGithubCommand(ctx: MyContext) {
   await ctx.reply("🔗 Пожалуйста, введите ваш никнейм на GitHub:");
 }
 
+/**
+ * НОВАЯ ФУНКЦИЯ: Обрабатывает команду /unlinkgithub.
+ * Отвязывает GitHub никнейм пользователя.
+ * @param ctx Контекст Grammys.
+ */
+async function handleUnlinkGithubCommand(ctx: MyContext) {
+  const { userId } = checkContextIds(ctx);
+  if (userId === null) return;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { telegramId: userId },
+      select: { githubLogin: true } // Выбираем только githubLogin
+    });
+
+    if (!user || !user.githubLogin) {
+      return ctx.reply("❌ Ваш аккаунт Telegram не привязан к GitHub.");
+    }
+
+    await prisma.user.update({
+      where: { telegramId: userId },
+      data: { githubLogin: null },
+    });
+    return ctx.reply("✅ Ваш GitHub никнейм успешно отвязан.");
+  } catch (e) {
+    console.error("Ошибка отвязки GitHub никнейма:", e);
+    return ctx.reply("⚠️ Произошла ошибка при отвязке GitHub никнейма. Пожалуйста, попробуйте позже.");
+  }
+}
+
 // --- РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ КОМАНД ---
 bot.command("start", handleStartCommand);
 bot.command("help", handleHelpCommand);
@@ -241,6 +272,7 @@ bot.command("addrepo", handleAddRepoCommand);
 bot.command("myrepo", handleMyRepoCommand);
 bot.command("delrepo", handleDelRepoCommand);
 bot.command("linkgithub", handleLinkGithubCommand);
+bot.command("unlinkgithub", handleUnlinkGithubCommand); // НОВАЯ КОМАНДА
 
 
 // --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
@@ -261,6 +293,9 @@ bot.on("message:text", async (ctx) => {
   }
   if (input === "🔗 Привязать GitHub") {
     return handleLinkGithubCommand(ctx);
+  }
+  if (input === "🗑️ Отвязать GitHub") { // НОВАЯ КНОПКА
+    return handleUnlinkGithubCommand(ctx);
   }
   if (input === "🤡 Отвязать репозиторий") {
     return handleDelRepoCommand(ctx);

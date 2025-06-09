@@ -10,14 +10,18 @@ function escapeMarkdown(text: string): string {
 const prisma = new PrismaClient();
 
 async function generateWeeklyReport() {
-  const now = new Date();
-  const weekStart = startOfWeek(subWeeks(now, 1));
-  const weekEnd = endOfWeek(subWeeks(now, 1));
+    const now = new Date();
+    
+    // Получаем начало и конец прошлой недели (с понедельника по воскресенье)
+    const weekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }); // 1 = понедельник
+    const weekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+    
+    // Для примера: если now = 10.06.2024 (понедельник)
+    // weekStart = 03.06.2024 (понедельник)
+    // weekEnd = 09.06.2024 (воскресенье)
 
-  const repositories = await prisma.repository.findMany({
-    include: {
-      chatBindings: true,
-    },
+    const repositories = await prisma.repository.findMany({
+        include: { chatBindings: true },
   });
 
   for (const repo of repositories) {
