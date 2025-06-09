@@ -1,5 +1,4 @@
 import express from "express";
-import { startWeeklyReportScheduler } from './weeklyReport';
 
 const app = express();
 const port = 3000;
@@ -19,4 +18,3 @@ app.post("/webhook", (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-startWeeklyReportScheduler();

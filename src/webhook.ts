@@ -55,7 +55,7 @@ router.post("/", express.json(), async (req, res) => {
       create: {
         githubLogin: sender.login,
         telegramName: sender.login,
-        telegramId: 0, // должен быть установлен ботом
+        telegramId: 0,
       },
     });
 
@@ -92,7 +92,7 @@ router.post("/", express.json(), async (req, res) => {
       return (
         `*${escapeMarkdown(repository.name)}* \`(${escapeMarkdown(branch)})\`\n` +
         `👤 [${escapeMarkdown(author)}](https://github.com/${sender.login})\n` +
-        `📌 [${sha}](${commit.url}) \\— ${escapeMarkdown(message)}\n` +
+        `📌 [${sha}](${commit.url}) — ${escapeMarkdown(message)}\n` +
         `📊 ${escapeMarkdown(`${additions}/${deletions} (${filesChanged} файл(ов))`)}`
       );
 
