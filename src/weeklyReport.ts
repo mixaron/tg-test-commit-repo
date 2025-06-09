@@ -102,7 +102,6 @@ async function generateWeeklyReport() {
   }
 }
 
-// Запуск каждую неделю в понедельник в 10:00 UTC
 export function startWeeklyReportScheduler() {
   // Для тестирования можно использовать '*/5 * * * * *' (каждые 5 секунд) 0 10 * * 1
   cron.schedule('*/60 * * * * *', () => {
