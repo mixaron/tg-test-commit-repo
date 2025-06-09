@@ -64,7 +64,7 @@ async function generateWeeklyReport() {
         report += line;
         });
 
-        report += `\n${escapeMarkdown('Всего коммитов:')} *${commits.length}*`;
+        report += `\n${escapeMarkdown('Всего коммитов:')} ${commits.length}`;
     }
 
     for (const binding of repo.chatBindings) {
