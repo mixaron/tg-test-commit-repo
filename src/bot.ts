@@ -1,35 +1,25 @@
-import { Bot, Keyboard, Context, InlineKeyboard } from "grammy"; // Убедитесь, что InlineKeyboard импортирован
+import { Bot, Keyboard, Context, InlineKeyboard } from "grammy";
 import { config } from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
-config(); // Загрузка переменных окружения из .env файла
-export const bot = new Bot(process.env.BOT_TOKEN!); // Инициализация бота
-const prisma = new PrismaClient(); // Инициализация клиента Prisma
+config(); 
+export const bot = new Bot(process.env.BOT_TOKEN!); 
+const prisma = new PrismaClient();
 
-// --- Вспомогательные функции (Хелперы) ---
 
-/**
- * Получает пользователя по Telegram ID, включая его репозитории.
- * @param telegramId ID пользователя Telegram (BigInt).
- * @returns Объект User с включенными репозиториями или null.
- */
+
 async function getUserWithRepos(telegramId: bigint) {
   return prisma.user.findUnique({
     where: { telegramId },
     include: {
-      repositories: { // Загружаем промежуточную таблицу RepositoryUser
-        include: { repository: true }, // И связанные с ними Repository
+      repositories: {
+        include: { repository: true },
       },
     },
   });
 }
 
-/**
- * Проверяет наличие ID пользователя и чата в контексте.
- * Отправляет сообщение об ошибке, если ID отсутствуют.
- * @param ctx Контекст Grammys.
- * @returns Объект с userId и chatId (могут быть null, если отсутствуют).
- */
+
 function checkContextIds(ctx: Context): { userId: bigint | null; chatId: bigint | null } {
   const userId = ctx.from?.id ? BigInt(ctx.from.id) : null;
   const chatId = ctx.chat?.id ? BigInt(ctx.chat.id) : null;
@@ -43,20 +33,16 @@ function checkContextIds(ctx: Context): { userId: bigint | null; chatId: bigint 
   return { userId, chatId };
 }
 
-// --- ФУНКЦИИ ОБРАБОТЧИКОВ КОМАНД ---
 
-/**
- * Обрабатывает команду /start. Регистрирует или обновляет пользователя и выводит главное меню.
- * @param ctx Контекст Grammys.
- */
+
+
 async function handleStartCommand(ctx: Context) {
   const { userId } = checkContextIds(ctx);
-  if (userId === null) return; // Выход, если ID пользователя нет
+  if (userId === null) return;
 
   const userName = ctx.from?.username;
 
   try {
-    // Регистрируем пользователя в базе данных или обновляем его имя
     await prisma.user.upsert({
       where: { telegramId: userId },
       update: { telegramName: userName || null },
@@ -68,7 +54,6 @@ async function handleStartCommand(ctx: Context) {
     return ctx.reply("⚠️ Произошла ошибка при регистрации вас в системе.");
   }
 
-  // Создаем ReplyKeyboard (постоянная клавиатура над полем ввода)
   const replyMarkup = {
     keyboard: [
       [{ text: "➕ Добавить репозиторий" }],
@@ -76,17 +61,13 @@ async function handleStartCommand(ctx: Context) {
       [{ text: "❓ Помощь" }],
       [{ text: "🤡 Отвязать репозиторий" }],
     ],
-    resize_keyboard: true, // Делает кнопки компактнее
-    one_time_keyboard: false, // Клавиатура остается видимой
+    resize_keyboard: true,
+    one_time_keyboard: false,
   };
 
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах. Выберите опцию:", { reply_markup: replyMarkup });
 }
 
-/**
- * Обрабатывает команду /help. Выводит информацию о доступных командах.
- * @param ctx Контекст Grammys.
- */
 async function handleHelpCommand(ctx: Context) {
   await ctx.reply(
     "📚 Команды:\n" +
@@ -97,18 +78,12 @@ async function handleHelpCommand(ctx: Context) {
   );
 }
 
-/**
- * Обрабатывает команду /addrepo. Запрашивает у пользователя имя репозитория.
- * @param ctx Контекст Grammys.
- */
+
 async function handleAddRepoCommand(ctx: Context) {
   await ctx.reply("✏️ Введите полное имя репозитория (пример: `user/my-repo`):", { parse_mode: "Markdown" });
 }
 
-/**
- * Обрабатывает команду /myrepo. Выводит список отслеживаемых репозиториев пользователя (только текст, без кнопок).
- * @param ctx Контекст Grammys.
- */
+
 async function handleMyRepoCommand(ctx: Context) {
   const { userId } = checkContextIds(ctx);
   if (userId === null) return;
@@ -119,7 +94,6 @@ async function handleMyRepoCommand(ctx: Context) {
     return ctx.reply("📭 У вас пока нет отслеживаемых репозиториев.");
   }
 
-  // Формируем текстовый список репозиториев
   const text = user.repositories
     .map((ru, i) => `🔹 ${i + 1}. [${ru.repository.fullName}](${ru.repository.githubUrl})`)
     .join("\n");
@@ -127,10 +101,7 @@ async function handleMyRepoCommand(ctx: Context) {
   await ctx.reply(`📦 Ваши репозитории:\n${text}`, { parse_mode: "Markdown" });
 }
 
-/**
- * Обрабатывает команду /delrepo. Выводит список репозиториев с Inline-кнопками для выбора.
- * @param ctx Контекст Grammys.
- */
+
 async function handleDelRepoCommand(ctx: Context) {
   const { userId, chatId } = checkContextIds(ctx);
   if (userId === null || chatId === null) return;
@@ -141,7 +112,7 @@ async function handleDelRepoCommand(ctx: Context) {
     return ctx.reply("📭 У вас пока нет репозиториев для удаления.");
   }
 
-  const currentThreadId = ctx.message?.message_thread_id || null; // null для общего чата
+  const currentThreadId = ctx.message?.message_thread_id || null;
 
   const filteredRepos = [];
   for (const ru of user.repositories) {
@@ -150,11 +121,7 @@ async function handleDelRepoCommand(ctx: Context) {
     });
 
     if (chatBinding) {
-      // Логика сравнения threadId:
-      // - Если текущий чат не является топиком (currentThreadId === null),
-      //   то привязка должна быть также без threadId (chatBinding.threadId === null).
-      // - Если текущий чат является топиком (currentThreadId !== null),
-      //   то привязка должна быть к этому же топику (chatBinding.threadId === currentThreadId).
+
       const isMatchingThread = (currentThreadId === null && chatBinding.threadId === null) ||
                                (currentThreadId !== null && chatBinding.threadId === currentThreadId);
       
@@ -170,7 +137,6 @@ async function handleDelRepoCommand(ctx: Context) {
 
   const inlineKeyboard = new InlineKeyboard();
   for (const repo of filteredRepos) {
-    // Исправление: Создаем кнопку и затем добавляем ее в ряд
     const button = { text: repo.fullName, callback_data: `select_to_delete_repo_${repo.id}` };
     inlineKeyboard.row(button);
   }
@@ -178,19 +144,16 @@ async function handleDelRepoCommand(ctx: Context) {
   await ctx.reply("Выберите репозиторий для удаления:", { reply_markup: inlineKeyboard });
 }
 
-// --- РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ КОМАНД ---
 bot.command("start", handleStartCommand);
 bot.command("help", handleHelpCommand);
 bot.command("addrepo", handleAddRepoCommand);
 bot.command("myrepo", handleMyRepoCommand);
-bot.command("delrepo", handleDelRepoCommand); // Регистрация команды /delrepo
+bot.command("delrepo", handleDelRepoCommand);
 
-// --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text?.trim();
   if (!input || input.startsWith("/")) return; // Игнорируем пустые или команды
 
-  // Обработка нажатий на кнопки ReplyKeyboard (главное меню)
   if (input === "➕ Добавить репозиторий") return handleAddRepoCommand(ctx);
   if (input === "📋 Мои репозитории") return handleMyRepoCommand(ctx);
   if (input === "❓ Помощь") return handleHelpCommand(ctx);
@@ -199,14 +162,12 @@ bot.on("message:text", async (ctx) => {
   const { userId, chatId } = checkContextIds(ctx);
   if (userId === null || chatId === null) return;
 
-  // Исправление: Получаем объект user здесь, так как он нужен для prisma.repositoryUser.upsert
   const user = await prisma.user.findUnique({ where: { telegramId: userId } });
   if (!user) {
       console.error(`Пользователь с ID ${userId} не найден в БД при добавлении репозитория.`);
       return ctx.reply("⚠️ Ошибка: ваш пользовательский аккаунт не найден. Пожалуйста, отправьте /start.");
   }
 
-  // Валидация формата полного имени репозитория (user/repo-name)
   if (!input.match(/^[\w.-]+\/[\w.-]+$/)) { // _.\- позволяет использовать буквы, цифры, _, ., -
     return ctx.reply(
       "❌ Неверный формат имени репозитория. Используйте `пользователь/имя-репозитория` (пример: `octocat/Spoon-Knife`).",
@@ -221,12 +182,10 @@ bot.on("message:text", async (ctx) => {
   try {
     let finalThreadId: number | null = null; // Итоговый threadId для сохранения
 
-    // Логика создания/получения threadId для групп
     if (ctx.chat.type === "group" || ctx.chat.type === "supergroup") {
         if (ctx.message?.message_thread_id) { // Если сообщение пришло из топика, используем его threadId
             finalThreadId = ctx.message.message_thread_id;
         } else {
-            // Иначе, пытаемся найти существующую привязку к топику для этого репозитория в этом чате
             const existingChatBinding = await prisma.chatBinding.findFirst({
                 where: {
                     chatId: chatId,
@@ -234,7 +193,6 @@ bot.on("message:text", async (ctx) => {
                 }
             });
 
-            // Исправление: Явная проверка existingChatBinding !== null
             if (existingChatBinding !== null && existingChatBinding.threadId !== null) {
                 finalThreadId = existingChatBinding.threadId;
                 await ctx.reply(`Этот репозиторий уже отслеживается в топике: [${name}](https://t.me/c/${chatId.toString().substring(4)}/${finalThreadId})`, {
@@ -257,9 +215,6 @@ bot.on("message:text", async (ctx) => {
             }
         }
     }
-    // Для приватных чатов finalThreadId останется null
-
-    // --- Сохраняем/обновляем Репозиторий ---
     const repo = await prisma.repository.upsert({
       where: { fullName },
       update: { name, githubUrl, chatId, threadId: finalThreadId },
@@ -268,7 +223,6 @@ bot.on("message:text", async (ctx) => {
 
     console.log(`✅ Репозиторий ${repo.fullName} (ID: ${repo.id}), threadId: ${repo.threadId} upserted.`);
 
-    // --- Привязка чата к репозиторию ---
     await prisma.chatBinding.upsert({
       where: { repositoryId_chatId: { repositoryId: repo.id, chatId } },
       update: { threadId: finalThreadId },
@@ -276,7 +230,6 @@ bot.on("message:text", async (ctx) => {
     });
     console.log(`Связка чата ${chatId} с репозиторием ${repo.id} (threadId: ${finalThreadId}) upserted.`);
 
-    // Теперь user гарантированно существует и его id используется
     await prisma.repositoryUser.upsert({
       where: { userId_repositoryId: { userId: user.id, repositoryId: repo.id } },
       update: {},
@@ -386,5 +339,4 @@ bot.callbackQuery(/^cancel_delete_(\d+)$/, async (ctx) => {
   }
 });
 
-// --- ЗАПУСК БОТА ---
 bot.start();
