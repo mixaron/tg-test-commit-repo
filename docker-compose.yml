@@ -1,0 +1,22 @@
+services:
+  bot:
+    build: .
+    container_name: git-notifier-bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=7640613151:AAEJZ54vieL2OBPbrlnwu5NeUkwVEaH37ZM
+      - WEBHOOK_SECRET=e63071b5-7413-4f73-af90-3ec2b475d1db
+      - DATABASE_URL=file:/data/sqlite.db
+      - PORT=3000
+    volumes:
+      - ./data:/data
+    ports:
+      - "3000:3000"
+    depends_on:
+      - smee
+  
+  smee:
+    image: docker.io/deltaprojects/smee-client:latest
+    container_name: smee-client
+    restart: unless-stopped
+    command: ["--url", "https://smee.io/QcDRgIKjmusr6", "--path", "/webhook", "--target", "http://bot:3000/webhook"]

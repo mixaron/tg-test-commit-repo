@@ -1,36 +1,30 @@
 import { Bot, Keyboard, Context, InlineKeyboard, session, SessionFlavor } from "grammy";
 import { config } from "dotenv";
 import { PrismaClient } from "@prisma/client";
-import { startWeeklyReportScheduler } from './weeklyReport'; // Ваш импорт
+import { startWeeklyReportScheduler } from './weeklyReport'; 
 
 config();
 startWeeklyReportScheduler();
 
-// --- Интерфейс для данных сессии ---
+
 interface SessionData {
   state?: 'awaiting_github_username' | 'awaiting_repo_name';
 }
 
-// --- Расширяем Context grammy для включения SessionFlavor ---
+
 type MyContext = Context & SessionFlavor<SessionData>;
 
 export const bot = new Bot<MyContext>(process.env.BOT_TOKEN!);
 const prisma = new PrismaClient();
 
-// --- Middleware для сессий ---
+
 bot.use(
   session({
     initial: (): SessionData => ({}),
   })
 );
 
-// --- Вспомогательные функции (Хелперы) ---
 
-/**
- * Получает пользователя по Telegram ID, включая его репозитории.
- * @param telegramId ID пользователя Telegram (BigInt).
- * @returns Объект User с включенными репозиториями или null.
- */
 async function getUserWithRepos(telegramId: bigint) {
   return prisma.user.findUnique({
     where: { telegramId },
@@ -42,12 +36,7 @@ async function getUserWithRepos(telegramId: bigint) {
   });
 }
 
-/**
- * Проверяет наличие ID пользователя и чата в контексте.
- * Отправляет сообщение об ошибке, если ID отсутствуют.
- * @param ctx Контекст Grammys.
- * @returns Объект с userId и chatId (могут быть null, если отсутствуют).
- */
+
 function checkContextIds(ctx: MyContext): { userId: bigint | null; chatId: bigint | null } {
   const userId = ctx.from?.id ? BigInt(ctx.from.id) : null;
   const chatId = ctx.chat?.id ? BigInt(ctx.chat.id) : null;
@@ -61,44 +50,32 @@ function checkContextIds(ctx: MyContext): { userId: bigint | null; chatId: bigin
   return { userId, chatId };
 }
 
-/**
- * НОВАЯ ФУНКЦИЯ: Форматирует имя автора коммита, заменяя GitHub-никнейм на Telegram-никнейм, если привязан.
- * @param githubLogin GitHub-никнейм автора коммита.
- * @param authorName Полное имя автора (если доступно, для fallback).
- * @returns Отформатированная строка автора с ссылкой на Telegram или GitHub.
- */
+
 export async function formatCommitAuthorLink(githubLogin: string, authorName: string = githubLogin): Promise<string> {
   try {
     const user = await prisma.user.findUnique({
       where: { githubLogin: githubLogin },
-      select: { telegramName: true, telegramId: true } // Выбираем только необходимые поля
+      select: { telegramName: true, telegramId: true } 
     });
 
     if (user && user.telegramName) {
-      // Если найден пользователь с привязанным Telegram никнеймом
-      // Создаем ссылку на Telegram аккаунт пользователя (например, t.me/username)
-      // Внимание: telegramName может быть без "@" или не уникальным. 
-      // Для прямой ссылки лучше использовать ctx.from.username, который мы не имеем здесь.
-      // Поэтому пока просто выводим @telegramName.
+      
       return `👤 @${user.telegramName} (GitHub: [${githubLogin}](https://github.com/${githubLogin}))`;
     } else {
-      // Если Telegram никнейм не привязан, используем GitHub-никнейм и ссылку
+      
       return `👤 [${authorName}](https://github.com/${githubLogin})`;
     }
   } catch (error) {
     console.error("Ошибка при форматировании автора коммита:", error);
-    // В случае ошибки возвращаем стандартную ссылку на GitHub
+    
     return `👤 [${authorName}](https://github.com/${githubLogin})`;
   }
 }
 
 
-// --- ФУНКЦИИ ОБРАБОТЧИКОВ КОМАНД ---
 
-/**
- * Обрабатывает команду /start. Регистрирует или обновляет пользователя и выводит главное меню.
- * @param ctx Контекст Grammys.
- */
+
+
 async function handleStartCommand(ctx: MyContext) {
   const { userId } = checkContextIds(ctx);
   if (userId === null) return;
@@ -122,7 +99,7 @@ async function handleStartCommand(ctx: MyContext) {
       [{ text: "➕ Добавить репозиторий" }],
       [{ text: "📋 Мои репозитории" }],
       [{ text: "❓ Помощь" }],
-      [{ text: "🔗 Привязать GitHub" }, { text: "🗑️ Отвязать GitHub" }], // Добавляем новую кнопку
+      [{ text: "🔗 Привязать GitHub" }, { text: "🗑️ Отвязать GitHub" }], 
       [{ text: "🤡 Отвязать репозиторий" }],
     ],
     resize_keyboard: true,
@@ -132,10 +109,6 @@ async function handleStartCommand(ctx: MyContext) {
   await ctx.reply("👋 Привет! Я бот для уведомлений о GitHub коммитах. Выберите опцию:", { reply_markup: replyMarkup });
 }
 
-/**
- * Обрабатывает команду /help. Выводит информацию о доступных командах.
- * @param ctx Контекст Grammys.
- */
 async function handleHelpCommand(ctx: MyContext) {
   await ctx.reply(
     "📚 Команды:\n" +
@@ -144,24 +117,15 @@ async function handleHelpCommand(ctx: MyContext) {
     "/myrepo — показать список всех отслеживаемых репозиториев\n" +
     "/delrepo — удалить отслеживаемый репозиторий\n" +
     "/linkgithub — привязать ваш GitHub никнейм\n" +
-    "/unlinkgithub — отвязать ваш GitHub никнейм" // Добавляем новую команду в помощь
+    "/unlinkgithub — отвязать ваш GitHub никнейм" 
   );
 }
 
-/**
- * Обрабатывает команду /addrepo. Запрашивает у пользователя имя репозитория.
- * Устанавливает состояние сессии.
- * @param ctx Контекст Grammys.
- */
 async function handleAddRepoCommand(ctx: MyContext) {
   ctx.session.state = 'awaiting_repo_name';
   await ctx.reply("✏️ Введите полное имя репозитория (пример: `user/my-repo`):", { parse_mode: "Markdown" });
 }
 
-/**
- * Обрабатывает команду /myrepo. Выводит список отслеживаемых репозиториев пользователя (только текст, без кнопок).
- * @param ctx Контекст Grammys.
- */
 async function handleMyRepoCommand(ctx: MyContext) {
   const { userId } = checkContextIds(ctx);
   if (userId === null) return;
@@ -179,11 +143,6 @@ async function handleMyRepoCommand(ctx: MyContext) {
   await ctx.reply(`📦 Ваши репозитории:\n${text}`, { parse_mode: "Markdown" });
 }
 
-/**
- * Обрабатывает команду /delrepo (или кнопку "Отвязать репозиторий").
- * Выводит список репозиториев с Inline-кнопками для выбора.
- * @param ctx Контекст Grammys.
- */
 async function handleDelRepoCommand(ctx: MyContext) {
   const { userId, chatId } = checkContextIds(ctx);
   if (userId === null || chatId === null) return;
@@ -225,21 +184,13 @@ async function handleDelRepoCommand(ctx: MyContext) {
   await ctx.reply("Выберите репозиторий для удаления:", { reply_markup: inlineKeyboard });
 }
 
-/**
- * Обрабатывает команду /linkgithub.
- * Устанавливает состояние сессии для ожидания GitHub-никнейма.
- * @param ctx Контекст Grammys.
- */
+
 async function handleLinkGithubCommand(ctx: MyContext) {
   ctx.session.state = 'awaiting_github_username';
   await ctx.reply("🔗 Пожалуйста, введите ваш никнейм на GitHub:");
 }
 
-/**
- * НОВАЯ ФУНКЦИЯ: Обрабатывает команду /unlinkgithub.
- * Отвязывает GitHub никнейм пользователя.
- * @param ctx Контекст Grammys.
- */
+
 async function handleUnlinkGithubCommand(ctx: MyContext) {
   const { userId } = checkContextIds(ctx);
   if (userId === null) return;
@@ -247,7 +198,7 @@ async function handleUnlinkGithubCommand(ctx: MyContext) {
   try {
     const user = await prisma.user.findUnique({
       where: { telegramId: userId },
-      select: { githubLogin: true } // Выбираем только githubLogin
+      select: { githubLogin: true } 
     });
 
     if (!user || !user.githubLogin) {
@@ -265,23 +216,23 @@ async function handleUnlinkGithubCommand(ctx: MyContext) {
   }
 }
 
-// --- РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ КОМАНД ---
+
 bot.command("start", handleStartCommand);
 bot.command("help", handleHelpCommand);
 bot.command("addrepo", handleAddRepoCommand);
 bot.command("myrepo", handleMyRepoCommand);
 bot.command("delrepo", handleDelRepoCommand);
 bot.command("linkgithub", handleLinkGithubCommand);
-bot.command("unlinkgithub", handleUnlinkGithubCommand); // НОВАЯ КОМАНДА
+bot.command("unlinkgithub", handleUnlinkGithubCommand); 
 
 
-// --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
-// Этот обработчик теперь использует ctx.session.state для управления потоком диалога
+
+
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text?.trim();
   if (!input) return;
 
-  // --- Обработка нажатий на кнопки ReplyKeyboard (главное меню) ---
+  
   if (input === "➕ Добавить репозиторий") {
     return handleAddRepoCommand(ctx);
   }
@@ -294,23 +245,23 @@ bot.on("message:text", async (ctx) => {
   if (input === "🔗 Привязать GitHub") {
     return handleLinkGithubCommand(ctx);
   }
-  if (input === "🗑️ Отвязать GitHub") { // НОВАЯ КНОПКА
+  if (input === "🗑️ Отвязать GitHub") { 
     return handleUnlinkGithubCommand(ctx);
   }
   if (input === "🤡 Отвязать репозиторий") {
     return handleDelRepoCommand(ctx);
   }
 
-  // Если сообщение начинается со слеша, это команда, которую уже обработает bot.command()
+  
   if (input.startsWith("/")) return;
 
   const { userId, chatId } = checkContextIds(ctx);
   if (userId === null || chatId === null) return;
 
-  // --- ЛОГИКА: Обработка ввода в зависимости от состояния сессии ---
+  
   if (ctx.session.state === 'awaiting_github_username') {
     const githubLogin = input;
-    // Валидация никнейма GitHub (можно улучшить)
+    
     if (!githubLogin.match(/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/)) {
       return ctx.reply("❌ Неверный формат никнейма GitHub. Используйте только буквы, цифры и дефисы (не в начале/конце).");
     }
@@ -320,7 +271,7 @@ bot.on("message:text", async (ctx) => {
         where: { telegramId: userId },
         data: { githubLogin: githubLogin },
       });
-      ctx.session.state = undefined; // Сбрасываем состояние после успешной обработки
+      ctx.session.state = undefined; 
       return ctx.reply(`✅ Ваш GitHub никнейм *${githubLogin}* успешно привязан!`, { parse_mode: "Markdown" });
     } catch (e: any) {
       console.error("Ошибка привязки GitHub никнейма:", e);
@@ -332,7 +283,7 @@ bot.on("message:text", async (ctx) => {
   }
 
   if (ctx.session.state === 'awaiting_repo_name') {
-    ctx.session.state = undefined; // Сбрасываем состояние после обработки ввода репозитория
+    ctx.session.state = undefined; 
     if (!input.match(/^[\w.-]+\/[\w.-]+$/)) {
       return ctx.reply(
         "❌ Неверный формат имени репозитория. Используйте `пользователь/имя-репозитория` (пример: `octocat/Spoon-Knife`).",
@@ -408,13 +359,10 @@ bot.on("message:text", async (ctx) => {
       await ctx.reply(error.message?.includes("Unique constraint failed") ? "⚠️ Репозиторий уже добавлен в этот чат." : "⚠️ Не удалось добавить репозиторий. Пожалуйста, попробуйте позже.");
     }
   } else {
-      // Если ни одно из ожидаемых состояний не активно и это не команда/кнопка
+      
       await ctx.reply("Неизвестная команда или ввод. Используйте кнопки меню или команды.");
   }
 });
-
-
-// --- ОБРАБОТЧИКИ CALLBACK QUERY ---
 
 bot.callbackQuery(/^select_to_delete_repo_(\d+)$/, async (ctx) => {
   await ctx.answerCallbackQuery();
@@ -509,10 +457,5 @@ bot.callbackQuery(/^cancel_delete_(\d+)$/, async (ctx) => {
   }
 });
 
-// --- ЗАПУСК БОТА ---
-bot.start();
 
-// Ваша функция generateWeeklyReport (если она используется в weeklyReport.ts)
-function generateWeeklyReport() {
-  throw new Error("Function not implemented."); // Placeholder
-}
+bot.start();
